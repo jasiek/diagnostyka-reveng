@@ -2,7 +2,7 @@ FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Base tools
+# Base tools + blutter build dependencies
 RUN apt-get update && apt-get install -y \
     unzip \
     zip \
@@ -11,9 +11,20 @@ RUN apt-get update && apt-get install -y \
     openjdk-17-jdk \
     python3 \
     python3-pip \
+    python3-venv \
     git \
     jq \
+    cmake \
+    ninja-build \
+    build-essential \
+    pkg-config \
+    libicu-dev \
+    libcapstone-dev \
+    g++-13 \
     && rm -rf /var/lib/apt/lists/*
+
+# Ensure g++-13 is the default
+RUN update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 100
 
 # jadx - Java/Android decompiler (decompiles DEX/APK to Java source)
 RUN wget -q https://github.com/skylot/jadx/releases/download/v1.5.1/jadx-1.5.1.zip -O /tmp/jadx.zip \
@@ -37,6 +48,14 @@ RUN wget -q https://github.com/pxb1988/dex2jar/releases/download/v2.4/dex-tools-
     && chmod +x /opt/dex2jar/dex-tools-v2.4/*.sh \
     && rm /tmp/dex2jar.zip
 ENV PATH="/opt/dex2jar/dex-tools-v2.4:${PATH}"
+
+# blutter - Dart AOT snapshot analyzer (extracts class definitions, method signatures from Flutter libapp.so)
+RUN git clone https://github.com/worawit/blutter.git /opt/blutter \
+    && cd /opt/blutter \
+    && python3 -m venv venv \
+    && . venv/bin/activate \
+    && pip install pyelftools requests
+ENV PATH="/opt/blutter:${PATH}"
 
 WORKDIR /workspace
 

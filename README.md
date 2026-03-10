@@ -34,6 +34,7 @@ See [`api-spec.yaml`](api-spec.yaml) for the full OpenAPI 3.0 specification with
 | **dex2jar** | Converts Dalvik DEX bytecode to standard Java JAR files for analysis |
 | **jq** | Command-line JSON processor for parsing extracted API data |
 | **strings** | Extracts printable strings from the compiled Flutter binary (libapp.so) |
+| **blutter** | Dart AOT snapshot analyzer - extracts class definitions, method signatures from Flutter libapp.so |
 
 ## Structure
 
