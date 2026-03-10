@@ -1,1 +1,2 @@
 requests>=2.31.0
+qrcode>=8.2
