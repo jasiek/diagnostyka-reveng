@@ -2,25 +2,19 @@
 """
 Diagnostyka API client.
 
-Authentication flow:
-  1. Firebase email magic link sign-in (one-time)
-  2. Firebase refresh token stored in ~/.diagnostyka_tokens.json
-  3. Firebase idToken refreshed automatically (~1hr expiry)
-  4. Backend API called with Authorization: Bearer <idToken>
+Authentication flow (mirrors the real mobile app):
+  1. login  — POST /api/v1/user/sign-in with email + deviceToken + actionCodeSettings
+              Backend creates/updates user record AND sends magic-link email.
+  2. verify — Extract oobCode from the email link, call Firebase signInWithEmailLink
+              to get idToken/refreshToken.  Device is now verified on the backend.
+  3. Any API call — Authorization: Bearer <idToken>, auto-refreshed.
 
 Usage:
-  # First-time login
   python diagnostyka.py login you@example.com
-
-  # Check email, get the link, then:
-  python diagnostyka.py verify <oobCode-from-email-link>
-
-  # Now use the API
+  # check email, copy the link
+  python diagnostyka.py verify '<full-URL-or-oobCode>'
   python diagnostyka.py user
-  python diagnostyka.py patient
   python diagnostyka.py results
-  python diagnostyka.py products
-  python diagnostyka.py institutions
   python diagnostyka.py get /api/v1/any/endpoint
 """
 
@@ -54,10 +48,16 @@ DART_USER_AGENT = "Dart/3.10 (dart:io)"
 
 
 class DiagnostykaAuth:
-    """Handles Firebase Auth email link flow and token management."""
+    """Handles Firebase Auth email link flow and token management.
+
+    Persists all state (tokens, email, deviceToken) to TOKEN_FILE.
+    """
 
     def __init__(self):
         self.tokens = self._load_tokens()
+        # Ensure a stable deviceToken exists (like FlutterSecureStorage on the real app)
+        if "deviceToken" not in self.tokens:
+            self._save_tokens({"deviceToken": str(uuid.uuid4())})
 
     def _load_tokens(self) -> dict:
         if TOKEN_FILE.exists():
@@ -69,16 +69,19 @@ class DiagnostykaAuth:
         TOKEN_FILE.write_text(json.dumps(self.tokens, indent=2))
         TOKEN_FILE.chmod(0o600)
 
-    def send_sign_in_link(self, email: str):
-        """Step 1: Request sign-in link via the Diagnostyka backend.
+    @property
+    def device_token(self) -> str:
+        return self.tokens["deviceToken"]
 
-        The backend calls Firebase Admin SDK to send the email and
-        creates a pending user record at the same time.  This is what
-        the real mobile app does — going through the backend rather
-        than calling Firebase client APIs directly.
+    def send_sign_in_link(self, email: str, base_url: str = BACKEND_PROD):
+        """Step 1: Request sign-in email via the Diagnostyka backend.
+
+        The backend calls Firebase Admin SDK to send the email AND
+        creates/updates the user + device record.  The deviceToken ties
+        this sign-in attempt to our "device".
         """
         resp = requests.post(
-            f"{BACKEND_PROD}/api/v1/user/sign-in",
+            f"{base_url}/api/v1/user/sign-in",
             headers={
                 "User-Agent": DART_USER_AGENT,
                 "Content-Type": "application/json; charset=utf-8",
@@ -86,6 +89,7 @@ class DiagnostykaAuth:
             },
             json={
                 "email": email,
+                "deviceToken": self.device_token,
                 "actionCodeSettings": {
                     "url": CONTINUE_URL,
                     "handleCodeInApp": True,
@@ -102,7 +106,12 @@ class DiagnostykaAuth:
         return resp.json() if resp.text else {}
 
     def complete_sign_in(self, oob_code: str):
-        """Step 2: Complete sign-in with the code from the email link."""
+        """Step 2: Complete sign-in with the oobCode from the email link.
+
+        Calls Firebase signInWithEmailLink to exchange the code for
+        idToken + refreshToken.  After this, the backend considers the
+        device (identified by deviceToken) as verified.
+        """
         email = self.tokens.get("email")
         if not email:
             raise RuntimeError("No email stored. Run 'login' first.")
@@ -213,21 +222,18 @@ class DiagnostykaClient:
     # ===== Convenience methods =====
 
     def sign_in(self) -> dict:
-        """Re-trigger the backend sign-in email (same as 'login' step).
-
-        Normally not needed — use 'login' + 'verify' instead.
-        """
+        """Re-trigger the backend sign-in email (same as 'login' step)."""
         email = self.auth.tokens.get("email")
         if not email:
             raise RuntimeError("No email stored. Run 'login' first.")
-        self.auth.send_sign_in_link(email)
+        self.auth.send_sign_in_link(email, base_url=self.base_url)
         return {"status": "sign-in email sent", "email": email}
 
     def register_push_token(self, fcm_token: str) -> dict:
         """Register an FCM push notification token with the backend."""
         return self.post("/api/v1/push-notification/register-token", data={
             "token": fcm_token,
-            "deviceId": self.auth.tokens.get("deviceId", str(uuid.uuid4())),
+            "deviceId": self.auth.device_token,
             "operatingSystem": "Android",
             "operatingSystemVersion": "14",
             "appVersion": APP_VERSION,
@@ -341,6 +347,101 @@ class DiagnostykaClient:
             params["regon"] = regon
         return self.get("/api/v1/gus/search", params=params)
 
+    # ===== Identity verification (mObywatel) =====
+
+    def start_mobywatel_verification(self) -> dict:
+        """Initiate identity verification via mObywatel.
+
+        The backend creates a verification session with the government
+        Back System and returns a 6-digit code (+ possibly QR data and
+        expiry info). The user must enter this code in their mObywatel app.
+        """
+        return self.post("/api/v1/m-obywatel")
+
+    def mobywatel_identify(self, poll_interval: int = 5, timeout: int = 300):
+        """Full mObywatel identity verification flow.
+
+        1. POST /api/v1/m-obywatel to get verification code
+        2. Display the code (numeric + QR) for the user
+        3. Poll GET /api/device/verified until isVerified=true or timeout
+        """
+        print("Starting mObywatel identity verification...")
+        print()
+
+        # Step 1: initiate
+        try:
+            resp = self.start_mobywatel_verification()
+        except requests.HTTPError as e:
+            print(f"Failed to start verification: HTTP {e.response.status_code}", file=sys.stderr)
+            print(e.response.text, file=sys.stderr)
+            return None
+
+        # Show the raw response so we can see the full shape
+        pp(resp)
+        print()
+
+        # Try to extract and display a verification code
+        # We don't know the exact response shape yet, so try common field names
+        code = None
+        for key in ("code", "verificationCode", "shareCode", "otp"):
+            if key in resp:
+                code = str(resp[key])
+                break
+        # If response is just a string/number, use it directly
+        if code is None and isinstance(resp, (str, int)):
+            code = str(resp)
+
+        if code:
+            print(f"  Verification code:  {code}")
+            print()
+            # Render QR code in terminal for scanning
+            try:
+                import qrcode
+                qr = qrcode.QRCode(border=1, box_size=1)
+                qr.add_data(code)
+                qr.make(fit=True)
+                qr.print_ascii(invert=True)
+                print()
+            except ImportError:
+                pass
+
+        print("=" * 50)
+        print("  Open the mObywatel app on your phone:")
+        print('  1. Tap "Kod QR"')
+        print('  2. Select "Potwierdz swoje dane"')
+        if code:
+            print(f"  3. Scan the QR above or type: {code}")
+        else:
+            print("  3. Enter the code shown above")
+        print("  4. Approve sharing your data")
+        print("=" * 50)
+        print()
+
+        # Step 2: poll for completion
+        print(f"Polling for verification (every {poll_interval}s, timeout {timeout}s)...")
+        start = time.time()
+        while time.time() - start < timeout:
+            time.sleep(poll_interval)
+            elapsed = int(time.time() - start)
+            try:
+                status = self.device_verified()
+            except requests.HTTPError:
+                print(f"  [{elapsed}s] Error checking status, retrying...")
+                continue
+
+            is_verified = status.get("isVerified", False)
+            is_new = status.get("isNewDevice", False)
+            print(f"  [{elapsed}s] isVerified={is_verified}, isNewDevice={is_new}")
+
+            if is_verified:
+                print()
+                print("Identity verified!")
+                return status
+
+        print()
+        print("Timed out waiting for verification.", file=sys.stderr)
+        return None
+
 
 def extract_oob_code(url_or_code: str) -> str:
     """Extract oobCode from a Firebase email link URL, or return as-is if already a code.
@@ -400,8 +501,9 @@ def main():
     verify_p.add_argument("code", help="oobCode from email link (URL or code)")
 
     sub.add_parser("refresh", help="Refresh the Firebase token")
-    sub.add_parser("signin", help="Sign in to Diagnostyka backend")
+    sub.add_parser("signin", help="Re-send sign-in email")
     sub.add_parser("token", help="Print current idToken")
+    sub.add_parser("status", help="Show auth status and deviceToken")
 
     # API commands
     sub.add_parser("user", help="Get user profile")
@@ -419,6 +521,10 @@ def main():
     sub.add_parser("cities", help="List cities with institutions")
     sub.add_parser("profilaktometr", help="Get profilaktometr data")
     sub.add_parser("assistant-topics", help="Get AI assistant topics")
+
+    id_p = sub.add_parser("identify", help="Verify identity via mObywatel")
+    id_p.add_argument("--poll", type=int, default=5, help="Poll interval in seconds (default: 5)")
+    id_p.add_argument("--timeout", type=int, default=300, help="Timeout in seconds (default: 300)")
 
     search_p = sub.add_parser("search", help="Search blood tests")
     search_p.add_argument("query", help="Search query")
@@ -456,13 +562,14 @@ def main():
 
     base_url = BACKEND_STAGING if args.staging else BACKEND_PROD
 
-    # Auth commands (don't need backend client)
+    # Auth commands (don't need full backend client)
     if args.command == "login":
         auth = DiagnostykaAuth()
-        result = auth.send_sign_in_link(args.email)
+        print(f"Device token: {auth.device_token}")
+        auth.send_sign_in_link(args.email, base_url=base_url)
         print(f"Magic link sent to {args.email}")
         print("Check your email and run:")
-        print(f"  python diagnostyka.py verify <oobCode-or-full-URL-from-email>")
+        print(f"  python diagnostyka.py verify '<full-URL-or-oobCode>'")
         return
 
     if args.command == "verify":
@@ -471,6 +578,7 @@ def main():
         result = auth.complete_sign_in(code)
         print(f"Signed in as {result.get('email', '?')}")
         print(f"Firebase UID: {result.get('localId', '?')}")
+        print(f"Device token: {auth.device_token}")
         print(f"Token stored in {TOKEN_FILE}")
         print()
         print("Ready! Try:  python diagnostyka.py user")
@@ -478,8 +586,8 @@ def main():
 
     if args.command == "refresh":
         auth = DiagnostykaAuth()
-        token = auth.refresh_id_token()
-        print(f"Token refreshed. Expires in ~1 hour.")
+        auth.refresh_id_token()
+        print("Token refreshed. Expires in ~1 hour.")
         return
 
     if args.command == "token":
@@ -487,8 +595,33 @@ def main():
         print(auth.get_id_token())
         return
 
+    if args.command == "status":
+        auth = DiagnostykaAuth()
+        print(f"Token file:   {TOKEN_FILE}")
+        print(f"Email:        {auth.tokens.get('email', '(none)')}")
+        print(f"Device token: {auth.device_token}")
+        print(f"Firebase UID: {auth.tokens.get('localId', '(none)')}")
+        has_token = bool(auth.tokens.get("idToken"))
+        expires_at = auth.tokens.get("expiresAt", 0)
+        expired = time.time() > expires_at
+        print(f"Has idToken:  {has_token}  {'(expired)' if has_token and expired else ''}")
+        return
+
     # API commands
     client = DiagnostykaClient(base_url, language=args.language)
+
+    # Interactive commands (not simple JSON responses)
+    if args.command == "identify":
+        try:
+            result = client.mobywatel_identify(
+                poll_interval=args.poll, timeout=args.timeout,
+            )
+            if result is None:
+                sys.exit(1)
+        except requests.HTTPError as e:
+            print(f"HTTP {e.response.status_code}: {e.response.text}", file=sys.stderr)
+            sys.exit(1)
+        return
 
     try:
         handlers = {
