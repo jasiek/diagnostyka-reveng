@@ -56,11 +56,52 @@ docker run --rm -v "$SCRIPT_DIR:/workspace" "$IMAGE_NAME" bash -c "
   cat backend-hosts.txt
 "
 
+echo "=== Step 7: Extract model/DTO field names ==="
+docker run --rm -v "$SCRIPT_DIR:/workspace" "$IMAGE_NAME" bash -c "
+  cd /workspace/$OUTPUT_DIR
+
+  echo '--- Model toString() patterns (reveal field names) ---'
+  grep -oE '[A-Za-z]+(Dto|Response|Model|State|Args)\([^)]*' libapp-strings.txt | sort -u > model-fields.txt
+  cat model-fields.txt
+
+  echo ''
+  echo '--- Enum values ---'
+  grep -oE '[A-Z][a-zA-Z]+(Type|Status|Mode)\.[a-zA-Z]+' libapp-strings.txt | sort -u > enum-values.txt
+  cat enum-values.txt
+
+  echo ''
+  echo '--- Auth/token strings ---'
+  grep -iE '(bearer|authorization|x-api|access.token|refresh.token|idToken)' libapp-strings.txt | sort -u > auth-strings.txt
+  cat auth-strings.txt
+"
+
+echo "=== Step 8: Extract AndroidManifest and network config ==="
+docker run --rm -v "$SCRIPT_DIR:/workspace" "$IMAGE_NAME" bash -c "
+  cd /workspace/$OUTPUT_DIR
+
+  echo '--- Network Security Config ---'
+  cat jadx-output/resources/res/xml/network_security_config.xml 2>/dev/null || echo 'Not found'
+
+  echo ''
+  echo '--- Key string resources ---'
+  grep -E 'redirect_domain|facebook_app_id|facebook_client_token' \
+    jadx-output/resources/res/values/strings.xml 2>/dev/null || echo 'Not found'
+
+  echo ''
+  echo '--- SSL certificates ---'
+  find jadx-output/resources/assets/ -name '*.cert' -o -name '*.pem' -o -name '*.crt' 2>/dev/null
+"
+
 echo ""
 echo "=== Done! ==="
 echo "Results in $OUTPUT_DIR/"
-echo "  - jadx-output/     : Decompiled Java source"
-echo "  - libapp-strings.txt : All strings from Flutter binary"
-echo "  - urls-found.txt   : All URLs"
-echo "  - api-endpoints.txt: API endpoint paths"
-echo "  - backend-hosts.txt: Backend host URLs"
+echo "  - jadx-output/      : Decompiled Java source"
+echo "  - libapp-strings.txt: All strings from Flutter binary"
+echo "  - urls-found.txt    : All URLs"
+echo "  - api-endpoints.txt : API endpoint paths"
+echo "  - backend-hosts.txt : Backend host URLs"
+echo "  - model-fields.txt  : Model/DTO field names"
+echo "  - enum-values.txt   : Enum values"
+echo "  - auth-strings.txt  : Auth-related strings"
+echo ""
+echo "API spec: api-spec.yaml"

@@ -62,23 +62,941 @@ components:
       scheme: bearer
       description: Firebase Auth ID token
 
+  schemas:
+    # ===== Common =====
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        errorId:
+          type: string
+        errorCode:
+          type: string
+        errorMessage:
+          type: string
+        message:
+          type: string
+        statusCode:
+          type: integer
+
+    PaginatedResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: {}
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalCount:
+          type: integer
+
+    # ===== User / Auth =====
+    UserModel:
+      type: object
+      properties:
+        id:
+          type: string
+        userType:
+          type: string
+          enum: [PATIENT, GUEST, PRACTITIONER, DOCTOR, ADMIN]
+        email:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phoneNumber:
+          type: string
+        pesel:
+          type: string
+          description: Polish national ID number (11 digits)
+        gender:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date
+        version:
+          type: string
+        status:
+          type: string
+
+    SignInResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        idToken:
+          type: string
+          description: Firebase ID token
+
+    LanguageChangeRequest:
+      type: object
+      properties:
+        language:
+          type: string
+          description: Language code (e.g. "pl", "en", "fr")
+
+    # ===== Verification =====
+    VerificationStatusResponse:
+      type: object
+      properties:
+        isVerified:
+          type: boolean
+
+    MObywatelVerificationResponse:
+      type: object
+      properties:
+        qrCode:
+          type: string
+          description: QR code data for mObywatel app
+        code:
+          type: string
+          description: 6-digit verification code
+
+    PatientResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+        phoneNumber:
+          type: string
+        pesel:
+          type: string
+        gender:
+          type: string
+
+    # ===== Consent =====
+    ConsentDto:
+      type: object
+      properties:
+        id:
+          type: string
+        consentStatus:
+          $ref: '#/components/schemas/ConsentStatus'
+        consentType:
+          $ref: '#/components/schemas/ConsentType'
+        version:
+          type: string
+        description:
+          type: string
+
+    ConsentRequestDto:
+      type: object
+      properties:
+        id:
+          type: string
+        consentStatus:
+          $ref: '#/components/schemas/ConsentStatus'
+
+    ConsentRequestWrapperDto:
+      type: object
+      properties:
+        consents:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConsentRequestDto'
+
+    ConsentStatus:
+      type: string
+      enum: [PENDING, ACCEPTED, REJECTED, EXPIRED, REVOKED, APPROVED, WITHDRAWN]
+
+    ConsentType:
+      type: string
+      enum: [MARKETING, ANALYTICS, PERFORMANCE, FUNCTIONAL, NECESSARY]
+
+    # ===== Patient =====
+    PatientModel:
+      type: object
+      properties:
+        patientId:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+        phoneNumber:
+          type: string
+        pesel:
+          type: string
+        gender:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date
+        addresses:
+          type: array
+          items:
+            $ref: '#/components/schemas/Address'
+        phones:
+          type: array
+          items:
+            type: string
+        emails:
+          type: array
+          items:
+            type: string
+
+    Address:
+      type: object
+      properties:
+        street:
+          type: string
+        streetType:
+          type: string
+        city:
+          type: string
+        cityName:
+          type: string
+        zipCode:
+          type: string
+        postalCode:
+          type: string
+        country:
+          type: string
+        countryCode:
+          type: string
+        addressLines:
+          type: array
+          items:
+            type: string
+
+    # ===== Health Profile =====
+    HealthProfile:
+      type: object
+      properties:
+        bmiProfile:
+          type: object
+        bmiValue:
+          type: number
+          format: double
+        bmiType:
+          type: string
+          description: "e.g. underweight, normalWeight, overweight, obesity"
+        weightKg:
+          type: number
+          format: double
+        heightCm:
+          type: number
+          format: double
+        waistCircumferenceCm:
+          type: number
+          format: double
+        age:
+          type: integer
+        gender:
+          type: string
+        lastUpdated:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    # ===== Push Notification =====
+    RegisterTokenRequest:
+      type: object
+      properties:
+        deviceToken:
+          type: string
+          description: FCM token
+        platform:
+          type: string
+          enum: [android, ios]
+        mobileToken:
+          type: string
+
+    # ===== CSW (Lab Results) =====
+    DocumentModel:
+      type: object
+      properties:
+        documentId:
+          type: string
+        documentType:
+          type: string
+        name:
+          type: string
+
+    TestResult:
+      type: object
+      properties:
+        testId:
+          type: string
+        testName:
+          type: string
+        testCode:
+          type: string
+        parameterId:
+          type: string
+        parameterCode:
+          type: string
+        testValue:
+          type: string
+        resultValue:
+          type: string
+        value:
+          type: string
+        unit:
+          type: string
+        referenceRange:
+          type: string
+        referenceRangeInfoTitle:
+          type: string
+        normalRange:
+          type: string
+        abnormal:
+          type: boolean
+        status:
+          type: string
+        isVisible:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        doctorName:
+          type: string
+
+    OrderModel:
+      type: object
+      properties:
+        orderId:
+          type: string
+        orderNumber:
+          type: string
+        orderDate:
+          type: string
+          format: date-time
+        orderStatus:
+          $ref: '#/components/schemas/OrderStatus'
+        tests:
+          type: array
+          items:
+            $ref: '#/components/schemas/TestResult'
+        items:
+          type: array
+          items: {}
+        totalPrice:
+          type: number
+          format: double
+        totalRegularPrice:
+          type: number
+          format: double
+        totalPriceBeforeDiscount:
+          type: number
+          format: double
+        currency:
+          type: string
+          example: PLN
+        orderedBy:
+          $ref: '#/components/schemas/OrdererDataModel'
+        orderBarcodes:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    OrderStatus:
+      type: string
+      enum:
+        - PendingPayment
+        - Completed
+        - Realized
+        - Overdue
+        - CancelledInFacility
+        - CancelledInEshop
+        - Unknown
+
+    OrdererDataModel:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+        phoneNumber:
+          type: string
+        pesel:
+          type: string
+        address:
+          $ref: '#/components/schemas/Address'
+
+    # ===== Voucher =====
+    VoucherModel:
+      type: object
+      properties:
+        voucherId:
+          type: string
+        voucherCode:
+          type: string
+        voucherNumber:
+          type: string
+        voucherStatus:
+          type: string
+        voucherName:
+          type: string
+        voucherSlug:
+          type: string
+        voucherPrice:
+          type: number
+          format: double
+        voucherCurrency:
+          type: string
+          example: PLN
+        voucherProducts:
+          type: array
+          items:
+            type: object
+        expiryDate:
+          type: string
+          format: date
+          description: 90 days from purchase
+        orderId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    # ===== E-Shop =====
+    ProductModel:
+      type: object
+      properties:
+        productId:
+          type: string
+        productName:
+          type: string
+        slug:
+          type: string
+        displayName:
+          type: string
+        title:
+          type: string
+        subtitle:
+          type: string
+        description:
+          type: string
+        shortDescription:
+          type: string
+        price:
+          type: number
+          format: double
+        regularPrice:
+          type: number
+          format: double
+        discountedPrice:
+          type: number
+          format: double
+        basePrice:
+          type: number
+          format: double
+        currency:
+          type: string
+          example: PLN
+        categorySlug:
+          type: string
+        imageUrl:
+          type: string
+        iconUrl:
+          type: string
+        isPackage:
+          type: boolean
+        isAvailable:
+          type: boolean
+        isActive:
+          type: boolean
+        isVisible:
+          type: boolean
+        isSellable:
+          type: boolean
+        barcode:
+          type: string
+        testCode:
+          type: string
+        testCodes:
+          type: array
+          items:
+            type: string
+        elabCode:
+          type: string
+        elabCodes:
+          type: array
+          items:
+            type: string
+        testKind:
+          type: string
+        kindId:
+          type: string
+        waitingTime:
+          type: string
+        preparationDescription:
+          type: string
+        preparationItems:
+          type: array
+          items:
+            type: string
+
+    CategoryModel:
+      type: object
+      properties:
+        categoryId:
+          type: string
+        categoryName:
+          type: string
+        categoryDescription:
+          type: string
+        categorySlug:
+          type: string
+        groupId:
+          type: string
+
+    # ===== Cart =====
+    CartModel:
+      type: object
+      properties:
+        cartSessionId:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItem'
+        totalPrice:
+          type: number
+          format: double
+        totalRegularPrice:
+          type: number
+          format: double
+        totalPriceBeforeDiscount:
+          type: number
+          format: double
+        subtotal:
+          type: number
+          format: double
+        discount:
+          type: number
+          format: double
+        discountCode:
+          type: string
+        totalProducts:
+          type: integer
+        totalPackages:
+          type: integer
+        totalSingleTests:
+          type: integer
+        totalFacilities:
+          type: integer
+        totalPercentageFill:
+          type: number
+          format: double
+        totalFill:
+          type: number
+          format: double
+        collectionFee:
+          type: number
+          format: double
+
+    CartItem:
+      type: object
+      properties:
+        cartItemId:
+          type: string
+        itemId:
+          type: string
+        cartItemPriceId:
+          type: string
+        priceItemId:
+          type: string
+        productType:
+          $ref: '#/components/schemas/CartProductType'
+        quantity:
+          type: integer
+        price:
+          type: number
+          format: double
+        availableInCart:
+          type: boolean
+        isUnavailable:
+          type: boolean
+
+    CartProductType:
+      type: string
+      enum: [BLOOD_TEST, PACKAGE, SINGLE_TEST]
+
+    CartAddItemRequest:
+      type: object
+      properties:
+        itemId:
+          type: string
+        productType:
+          $ref: '#/components/schemas/CartProductType'
+        quantity:
+          type: integer
+        priceItemId:
+          type: string
+
+    CheckoutRequest:
+      type: object
+      properties:
+        paymentMethod:
+          type: string
+          description: "PayU or Twisto"
+
+    CheckoutResponse:
+      type: object
+      properties:
+        checkoutId:
+          type: string
+        transactionId:
+          type: string
+        redirectUrl:
+          type: string
+          description: PayU payment page URL
+        paymentUrl:
+          type: string
+        paymentStatus:
+          type: string
+        sessionId:
+          type: string
+        isPaid:
+          type: boolean
+
+    DiscountRequest:
+      type: object
+      properties:
+        discountCode:
+          type: string
+
+    DiscountResponse:
+      type: object
+      properties:
+        discountCode:
+          type: string
+        discountValue:
+          type: number
+          format: double
+        discountProgressMessage:
+          type: string
+
+    CartPatientRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        pesel:
+          type: string
+        birthDate:
+          type: string
+          format: date
+        gender:
+          type: string
+        email:
+          type: string
+        phoneNumber:
+          type: string
+        address:
+          $ref: '#/components/schemas/Address'
+
+    # ===== Institution / Facility =====
+    FacilityModel:
+      type: object
+      properties:
+        facilityId:
+          type: string
+        institutionId:
+          type: string
+        facilityName:
+          type: string
+        address:
+          $ref: '#/components/schemas/Address'
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        email:
+          type: string
+        phoneNumber:
+          type: string
+        facilityPhonePrimary:
+          type: string
+        facilityPhoneAdditional:
+          type: string
+        website:
+          type: string
+        status:
+          $ref: '#/components/schemas/FacilityStatus'
+        features:
+          type: array
+          items:
+            $ref: '#/components/schemas/FacilityAttribute'
+        openingHours:
+          type: array
+          items:
+            $ref: '#/components/schemas/OpeningHours'
+        isOpen24:
+          type: boolean
+        isCollectionPoint:
+          type: boolean
+
+    FacilityStatus:
+      type: string
+      enum: [open, closed]
+
+    FacilityAttribute:
+      type: object
+      properties:
+        attributeName:
+          type: string
+        attributeType:
+          $ref: '#/components/schemas/FacilityAttributeType'
+
+    FacilityAttributeType:
+      type: string
+      enum: [FEATURE, FILTER, SERVICE]
+
+    OpeningHours:
+      type: object
+      properties:
+        dayOfWeek:
+          type: string
+        startTime:
+          type: string
+        endTime:
+          type: string
+
+    # ===== GUS =====
+    GusSearchRequest:
+      type: object
+      properties:
+        nip:
+          type: string
+        regon:
+          type: string
+
+    GusSearchResponse:
+      type: object
+      properties:
+        companyName:
+          type: string
+        companyData:
+          type: object
+        nip:
+          type: string
+        regon:
+          type: string
+        address:
+          $ref: '#/components/schemas/Address'
+
+    # ===== Profilaktometr =====
+    ProfilaktometrData:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+        tests:
+          type: array
+          items:
+            type: object
+        testGroupKeys:
+          type: array
+          items:
+            type: string
+        lastSync:
+          type: string
+          format: date-time
+        isSynchronized:
+          type: boolean
+
+    ProfilaktometrConfig:
+      type: object
+      properties:
+        configurationId:
+          type: string
+
+    MedicalParameter:
+      type: object
+      properties:
+        parameterId:
+          type: string
+        parameterCode:
+          type: string
+        parameterName:
+          type: string
+        parameterValue:
+          type: string
+        parameterType:
+          type: string
+        unit:
+          type: string
+        referenceRange:
+          type: string
+        lowValue:
+          type: number
+          format: double
+        highValue:
+          type: number
+          format: double
+        normalValue:
+          type: number
+          format: double
+
+    ProfilaktometrSyncRequest:
+      type: object
+      properties:
+        data:
+          type: object
+        lastSyncDate:
+          type: string
+          format: date-time
+
+    # ===== AI Assistant =====
+    AssistantSessionResponse:
+      type: object
+      properties:
+        sessionId:
+          type: string
+        sessionToken:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    AssistantTopic:
+      type: object
+      properties:
+        topicId:
+          type: string
+        topicName:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+
+    AssistantConversationRequest:
+      type: object
+      properties:
+        conversationId:
+          type: string
+        message:
+          type: string
+        sessionId:
+          type: string
+
+    AssistantConversationResponse:
+      type: object
+      description: "AiAssistantConversationHttpResponse"
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssistantMessage'
+
+    AssistantMessage:
+      type: object
+      properties:
+        messageId:
+          type: string
+        text:
+          type: string
+        content:
+          type: string
+        messageType:
+          type: string
+        messageLevel:
+          type: string
+
+    # ===== LabPlus =====
+    LabPlusConfig:
+      type: object
+      description: "Embedded in WebView iframe"
+      properties:
+        adapterHost:
+          type: string
+          example: https://api.adapter.labplus.pl
+        clientHash:
+          type: string
+        labplusToken:
+          type: string
+      externalDocs:
+        description: "LabPlus iframe URL pattern: {adapterHost}/interview/{clientHash}?token={token}"
+        url: https://api.adapter.labplus.pl
+
 paths:
   # ===== User / Auth =====
   /api/v1/user/sign-in:
     post:
       tags: [Auth]
       summary: Sign in user
-      description: Authenticate user after Firebase Auth verification
+      description: Authenticate user after Firebase Auth phone verification. Firebase Auth provides the initial authentication; this endpoint registers/signs in the user on the Diagnostyka backend.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                loginMode:
+                  type: string
+                  description: "Login method used"
+      responses:
+        '200':
+          description: Successful sign-in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignInResponse'
 
   /api/v1/user:
     get:
       tags: [User]
       summary: Get current user profile
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserModel'
 
   /api/v1/user/language:
     put:
       tags: [User]
       summary: Set user language preference
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LanguageChangeRequest'
+      responses:
+        '200':
+          description: Language updated
 
   /api/v1/user-storage/{key}:
     get:
@@ -93,6 +1011,18 @@ paths:
           examples:
             appReview:
               value: app_review_sent
+      responses:
+        '200':
+          description: Storage value
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  key:
+                    type: string
+                  value:
+                    type: string
     put:
       tags: [User]
       summary: Set user storage value
@@ -102,50 +1032,136 @@ paths:
           required: true
           schema:
             type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                value:
+                  type: string
+      responses:
+        '200':
+          description: Value stored
 
   # ===== Device =====
   /api/device/verified:
     get:
       tags: [Device]
       summary: Check if device is verified
+      responses:
+        '200':
+          description: Verification status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationStatusResponse'
 
   # ===== Push Notifications =====
   /api/v1/push-notification/register-token:
     post:
       tags: [Notifications]
       summary: Register push notification token (FCM)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterTokenRequest'
+      responses:
+        '200':
+          description: Token registered
 
   # ===== Patient Data =====
   /api/v1/patient-data:
     get:
       tags: [Patient]
       summary: Get patient data
+      description: Returns full patient profile including personal data, addresses, contact info
+      responses:
+        '200':
+          description: Patient data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatientModel'
 
   /api/v1/my-health-profile:
     get:
       tags: [Patient]
-      summary: Get health profile
+      summary: Get health profile (BMI, measurements)
+      responses:
+        '200':
+          description: Health profile with BMI data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthProfile'
 
   # ===== Identity Verification =====
   /api/v1/m-obywatel:
     post:
       tags: [Verification]
       summary: Start mObywatel identity verification
-      description: Polish digital ID verification flow
+      description: |
+        Polish digital ID (mObywatel app) verification flow.
+        Returns QR code or 6-digit code for the user to scan/enter in the mObywatel app.
+        On success, returns verified patient data.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                generate6DigitCode:
+                  type: boolean
+      responses:
+        '200':
+          description: Verification initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MObywatelVerificationResponse'
 
   /api/v1/moje-id:
     post:
       tags: [Verification]
       summary: Start MojeID identity verification
+      description: |
+        MojeID (KIR - Krajowa Izba Rozliczeniowa) identity verification.
+        Uses banking identity for verification. On success, returns verified patient data.
+      responses:
+        '200':
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatientResponse'
 
   # ===== Consent =====
   /api/v1/consent:
     get:
       tags: [Consent]
-      summary: Get consent status
+      summary: Get all consent statuses
+      responses:
+        '200':
+          description: List of consents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ConsentDto'
     post:
       tags: [Consent]
-      summary: Submit consent
+      summary: Submit consent decisions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConsentRequestWrapperDto'
+      responses:
+        '200':
+          description: Consents saved
 
   /api/v1/consent/{id}:
     put:
@@ -157,61 +1173,173 @@ paths:
           required: true
           schema:
             type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConsentRequestDto'
+      responses:
+        '200':
+          description: Consent updated
 
   # ===== CSW (Lab Results System) =====
   /api/v1/csw:
     get:
       tags: [CSW]
-      summary: Get CSW data
+      summary: Get CSW lab results overview
+      responses:
+        '200':
+          description: CSW data with documents
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  documents:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DocumentModel'
+                  items:
+                    type: array
+                    items: {}
 
   /api/v1/csw/document/{id}:
     get:
       tags: [CSW]
-      summary: Get lab result document
+      summary: Get lab result document (PDF)
       parameters:
         - name: id
           in: path
           required: true
           schema:
             type: string
+      responses:
+        '200':
+          description: Lab result document
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentModel'
 
   /api/v1/csw/patient/history/{id}:
     get:
       tags: [CSW]
-      summary: Get patient test history
+      summary: Get patient test history for a specific test/parameter
       parameters:
         - name: id
           in: path
           required: true
           schema:
             type: string
+      responses:
+        '200':
+          description: Historical test results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  history:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TestResult'
+                  historyUrl:
+                    type: string
 
   /api/v1/csw/patient/order:
     get:
       tags: [CSW]
       summary: Get patient orders list
+      responses:
+        '200':
+          description: List of orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrderModel'
 
   /api/v1/csw/patient/order/{id}:
     get:
       tags: [CSW]
-      summary: Get specific patient order
+      summary: Get specific patient order with full details
       parameters:
         - name: id
           in: path
           required: true
           schema:
             type: string
+      responses:
+        '200':
+          description: Order details with tests, barcodes, orderer data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderModel'
 
   /api/v1/csw/patient/search-values:
     get:
       tags: [CSW]
-      summary: Search patient values (autocomplete/filter)
+      summary: Search/autocomplete for patient values
+      parameters:
+        - name: query
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Search suggestions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  suggestions:
+                    type: array
+                    items:
+                      type: string
+                  values:
+                    type: array
+                    items:
+                      type: string
 
   # ===== E-Shop =====
   /api/v1/eshop/products:
     get:
       tags: [E-Shop]
       summary: Get product listing
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+        - name: sort
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Product list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductModel'
+                  totalCount:
+                    type: integer
+                  page:
+                    type: integer
+                  pageSize:
+                    type: integer
 
   /api/v1/eshop/products/{id}:
     get:
@@ -223,11 +1351,27 @@ paths:
           required: true
           schema:
             type: string
+      responses:
+        '200':
+          description: Product details with pricing, preparation instructions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductModel'
 
   /api/v1/eshop/products/categories:
     get:
       tags: [E-Shop]
       summary: Get product categories
+      responses:
+        '200':
+          description: Category list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryModel'
 
   /api/v1/eshop/products/category/{id}:
     get:
@@ -239,88 +1383,276 @@ paths:
           required: true
           schema:
             type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Products in category
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductModel'
+                  totalCount:
+                    type: integer
 
   /api/v1/eshop/dashboard/blood-tests:
     get:
       tags: [E-Shop]
-      summary: Get dashboard blood tests
+      summary: Get featured blood tests for dashboard
+      responses:
+        '200':
+          description: Dashboard blood tests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductModel'
 
   /api/v1/eshop/dashboard/packages:
     get:
       tags: [E-Shop]
-      summary: Get dashboard packages
+      summary: Get featured packages for dashboard
+      responses:
+        '200':
+          description: Dashboard packages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductModel'
 
   /api/v1/eshop/search/blood-tests:
     get:
       tags: [E-Shop]
       summary: Search blood tests
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductModel'
+                  totalCount:
+                    type: integer
 
   /api/v1/eshop/search/packages:
     get:
       tags: [E-Shop]
       summary: Search packages
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Package search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductModel'
 
   /api/v1/eshop/search/matches:
     get:
       tags: [E-Shop]
-      summary: Search matches (autocomplete)
+      summary: Search autocomplete matches
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Autocomplete matches
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
 
   /api/v1/eshop/search/popular-search:
     get:
       tags: [E-Shop]
       summary: Get popular search terms
+      responses:
+        '200':
+          description: Popular searches
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
 
   # ===== Cart (v2) =====
   /api/v2/cart:
     get:
       tags: [Cart]
       summary: Get current cart
+      responses:
+        '200':
+          description: Current cart state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartModel'
     post:
       tags: [Cart]
       summary: Add item to cart
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartAddItemRequest'
+      responses:
+        '200':
+          description: Updated cart
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartModel'
     delete:
       tags: [Cart]
       summary: Clear cart
+      responses:
+        '200':
+          description: Cart cleared
 
   /api/v2/cart/checkout:
     post:
       tags: [Cart]
-      summary: Begin checkout process
+      summary: Begin checkout - creates PayU/Twisto payment
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutRequest'
+      responses:
+        '200':
+          description: Checkout initiated with payment redirect URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutResponse'
 
   /api/v2/cart/checkout/{id}:
     get:
       tags: [Cart]
-      summary: Get checkout status
+      summary: Get checkout/payment status
       parameters:
         - name: id
           in: path
           required: true
           schema:
             type: string
+      responses:
+        '200':
+          description: Payment status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutResponse'
 
   /api/v2/cart/discount:
     post:
       tags: [Cart]
-      summary: Apply discount code
+      summary: Apply discount code to cart
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiscountRequest'
+      responses:
+        '200':
+          description: Discount applied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscountResponse'
 
   /api/v2/cart/patient:
     get:
       tags: [Cart]
-      summary: Get cart patient data
+      summary: Get patients assigned to cart
+      responses:
+        '200':
+          description: Cart patients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CartPatientRequest'
     post:
       tags: [Cart]
-      summary: Set cart patient data
+      summary: Add patient to cart (orderer or test subject)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartPatientRequest'
+      responses:
+        '200':
+          description: Patient added
 
   /api/v2/cart/patient/{id}:
     put:
       tags: [Cart]
-      summary: Update cart patient
+      summary: Update cart patient data
       parameters:
         - name: id
           in: path
           required: true
           schema:
             type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartPatientRequest'
+      responses:
+        '200':
+          description: Patient updated
 
   /api/v2/cart/promotion/{code}:
     get:
@@ -332,11 +1664,35 @@ paths:
           required: true
           schema:
             type: string
+      responses:
+        '200':
+          description: Promotion details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  promotionId:
+                    type: string
+                  promotionCode:
+                    type: string
+                  discountValue:
+                    type: number
+                    format: double
 
   /api/v2/cart/suggested-packages:
     get:
       tags: [Cart]
-      summary: Get suggested packages for cart
+      summary: Get suggested packages based on cart contents
+      responses:
+        '200':
+          description: Suggested packages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductModel'
 
   /api/v2/cart/suggested-packages/{id}:
     get:
@@ -348,12 +1704,54 @@ paths:
           required: true
           schema:
             type: string
+      responses:
+        '200':
+          description: Package details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductModel'
 
   # ===== Institutions / Facilities =====
   /api/v1/institution:
     get:
       tags: [Institution]
       summary: List institutions/facilities
+      parameters:
+        - name: city
+          in: query
+          schema:
+            type: string
+        - name: latitude
+          in: query
+          schema:
+            type: number
+        - name: longitude
+          in: query
+          schema:
+            type: number
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Facility list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FacilityModel'
+                  totalCount:
+                    type: integer
 
   /api/v1/institution/{id}:
     get:
@@ -365,96 +1763,252 @@ paths:
           required: true
           schema:
             type: string
+      responses:
+        '200':
+          description: Full facility details with hours, features, contact
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FacilityModel'
 
   /api/v1/institution/attribute:
     get:
       tags: [Institution]
-      summary: Get institution attributes/filters
+      summary: Get filterable facility attributes
+      responses:
+        '200':
+          description: Attribute list for filtering
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FacilityAttribute'
 
   /api/v1/institution/city:
     get:
       tags: [Institution]
-      summary: Get available cities with institutions
+      summary: Get cities that have facilities
+      responses:
+        '200':
+          description: City list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    cityName:
+                      type: string
+                    citySlug:
+                      type: string
 
   /api/v1/institution/current:
     get:
       tags: [Institution]
-      summary: Get currently selected institution
+      summary: Get user's currently selected facility
+      responses:
+        '200':
+          description: Current facility
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FacilityModel'
 
-  # ===== GUS (Government Statistics) =====
+  # ===== GUS (Government Statistics Office) =====
   /api/v1/gus/search:
     get:
       tags: [GUS]
-      summary: Search GUS registry (address lookup)
+      summary: Search GUS registry by NIP or REGON
+      description: Looks up company/address data from Polish government registry
+      parameters:
+        - name: nip
+          in: query
+          schema:
+            type: string
+        - name: regon
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Company/address data from GUS
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GusSearchResponse'
 
   # ===== Order History =====
   /api/v1/order-history:
     get:
       tags: [Orders]
       summary: Get order history
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Order history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OrderModel'
+                  totalCount:
+                    type: integer
 
   /api/v1/order-history/voucher/{id}:
     get:
       tags: [Orders]
-      summary: Get voucher details
+      summary: Get voucher details for an order
       parameters:
         - name: id
           in: path
           required: true
           schema:
             type: string
+      responses:
+        '200':
+          description: Voucher details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoucherModel'
 
   # ===== Profilaktometr (Health Prevention Tool) =====
   /api/v1/profilaktometr:
     get:
       tags: [Profilaktometr]
-      summary: Get profilaktometr data
+      summary: Get profilaktometr assessment data
+      responses:
+        '200':
+          description: Profilaktometr data with test groups
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfilaktometrData'
 
   /api/v1/profilaktometr/config:
     get:
       tags: [Profilaktometr]
       summary: Get profilaktometr configuration
+      responses:
+        '200':
+          description: Configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfilaktometrConfig'
 
   /api/v1/profilaktometr/medical-parameters:
     get:
       tags: [Profilaktometr]
-      summary: Get medical parameters
+      summary: Get all medical parameters definitions
+      responses:
+        '200':
+          description: Medical parameter definitions with reference ranges
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MedicalParameter'
 
   /api/v1/profilaktometr/parameters/{id}:
     get:
       tags: [Profilaktometr]
-      summary: Get specific parameter details
+      summary: Get specific medical parameter details
       parameters:
         - name: id
           in: path
           required: true
           schema:
             type: string
+      responses:
+        '200':
+          description: Parameter details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MedicalParameter'
 
   /api/v1/profilaktometr/sync:
     post:
       tags: [Profilaktometr]
       summary: Sync profilaktometr data
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfilaktometrSyncRequest'
+      responses:
+        '200':
+          description: Sync complete
 
   # ===== AI Assistant =====
   /api/v1/assistant/session:
     post:
       tags: [Assistant]
-      summary: Create assistant session
+      summary: Create new AI assistant session
+      responses:
+        '200':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssistantSessionResponse'
 
   /api/v1/assistant/topics:
     get:
       tags: [Assistant]
-      summary: Get assistant topics
+      summary: Get available assistant conversation topics
+      responses:
+        '200':
+          description: Topic list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AssistantTopic'
 
   /api/v1/assistant/conversation:
     post:
       tags: [Assistant]
-      summary: Send message to assistant
+      summary: Send message to AI assistant
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssistantConversationRequest'
+      responses:
+        '200':
+          description: Assistant response with messages
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssistantConversationResponse'
 
   # ===== WebSocket =====
   /api/socket.io:
     get:
       tags: [WebSocket]
       summary: Socket.IO endpoint for real-time updates
-      description: Uses Socket.IO protocol for real-time communication
+      description: |
+        Socket.IO v3 protocol for real-time communication.
+        Used for live updates on order status, payment confirmations, etc.
+
+        Connection: `wss://mobile-fir-backend.diag.pl/api/socket.io`
+
+        Events include order status changes, payment notifications, and assistant streaming.
