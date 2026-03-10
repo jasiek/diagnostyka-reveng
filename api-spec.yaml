@@ -29,6 +29,18 @@ info:
     **App type:** Flutter (Dart compiled to libapp.so)
     **HTTP client:** Dio
     **Real-time:** Socket.IO (`/api/socket.io`)
+
+    **SSL Certificate Pinning:**
+    - Backend cert: `assets/certs/backend_prod_02_2027.cert` (valid 2026-02-17 to 2027-02-17, Certum OV TLS G2 R3)
+
+    **Firebase Configuration:**
+    - Project ID: `apps-for-dia`
+    - API Key: `AIzaSyBIIQT2arhhBulESRS7ZPl3vQQ8zwU0w_Y`
+    - App ID: `1:51520291417:android:4420898509a99339516748`
+    - GCM Sender ID: `51520291417`
+    - Storage Bucket: `apps-for-dia.appspot.com`
+    - Web Client ID: `51520291417-lm2ngfekavnrk6lm0q7g3ij8u12fdtlu.apps.googleusercontent.com`
+    - Crashlytics Mapping ID: `3667d92a7ead4ffc962777396429b132`
   version: 2.0.7
   contact:
     name: Diagnostyka
