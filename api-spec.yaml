@@ -21,6 +21,14 @@ info:
     - Sentry: `https://464c8af78dc8eceb4d953552f53b9c3f@o107039.ingest.us.sentry.io/4508760361271296`
     - Results portal: `https://wyniki.diag.pl/`
     - E-shop: `https://diag.pl/sklep/`
+    - Payment redirect: `https://diag.pl/pay-redirect` (PayU gateway, TWISTO buy-now-pay-later)
+    - Firebase Dynamic Links: `diaglogin.page.link`, `apps-for-dia.web.app`, `apps-for-dia.firebaseapp.com`
+    - MojeID (KIR): `in-eidmock.kir.pl` (cleartext allowed for testing)
+    - Facebook App ID: `660569650449530`
+
+    **App type:** Flutter (Dart compiled to libapp.so)
+    **HTTP client:** Dio
+    **Real-time:** Socket.IO (`/api/socket.io`)
   version: 2.0.7
   contact:
     name: Diagnostyka
