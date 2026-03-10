@@ -56,7 +56,17 @@ docker run --rm -v "$SCRIPT_DIR:/workspace" "$IMAGE_NAME" bash -c "
   cat backend-hosts.txt
 "
 
-echo "=== Step 7: Extract model/DTO field names ==="
+echo "=== Step 7: Run blutter (Dart AOT snapshot analyzer) ==="
+docker run --rm -v "$SCRIPT_DIR:/workspace" "$IMAGE_NAME" bash -c "
+  cd /opt/blutter
+  . venv/bin/activate
+  python3 blutter.py \
+    /workspace/$OUTPUT_DIR/arm64-contents/lib/arm64-v8a \
+    /workspace/$OUTPUT_DIR/blutter-output \
+    2>&1 || echo 'blutter completed (may have partial results)'
+"
+
+echo "=== Step 8: Extract model/DTO field names ==="
 docker run --rm -v "$SCRIPT_DIR:/workspace" "$IMAGE_NAME" bash -c "
   cd /workspace/$OUTPUT_DIR
 
@@ -75,7 +85,14 @@ docker run --rm -v "$SCRIPT_DIR:/workspace" "$IMAGE_NAME" bash -c "
   cat auth-strings.txt
 "
 
-echo "=== Step 8: Extract AndroidManifest and network config ==="
+echo "=== Step 9: Extract potential JSON field names ==="
+docker run --rm -v "$SCRIPT_DIR:/workspace" "$IMAGE_NAME" bash -c "
+  cd /workspace/$OUTPUT_DIR
+  grep -E '^[a-z][a-zA-Z0-9_]{2,39}$' libapp-strings.txt | sort -u > field-names.txt
+  echo \"Found \$(wc -l < field-names.txt) potential field names\"
+"
+
+echo "=== Step 10: Extract AndroidManifest and network config ==="
 docker run --rm -v "$SCRIPT_DIR:/workspace" "$IMAGE_NAME" bash -c "
   cd /workspace/$OUTPUT_DIR
 
