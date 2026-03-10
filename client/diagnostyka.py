@@ -380,39 +380,32 @@ class DiagnostykaClient:
         pp(resp)
         print()
 
-        # Try to extract and display a verification code
-        # We don't know the exact response shape yet, so try common field names
-        code = None
-        for key in ("code", "verificationCode", "shareCode", "otp"):
-            if key in resp:
-                code = str(resp[key])
-                break
-        # If response is just a string/number, use it directly
-        if code is None and isinstance(resp, (str, int)):
-            code = str(resp)
+        # Response shape: { "qrCode": "..." }
+        qr_data = resp.get("qrCode")
 
-        if code:
-            print(f"  Verification code:  {code}")
+        if qr_data:
+            print(f"  QR data: {qr_data}")
             print()
             # Render QR code in terminal for scanning
             try:
                 import qrcode
                 qr = qrcode.QRCode(border=1, box_size=1)
-                qr.add_data(code)
+                qr.add_data(qr_data)
                 qr.make(fit=True)
                 qr.print_ascii(invert=True)
                 print()
             except ImportError:
-                pass
+                print("  (install 'qrcode' package to render QR in terminal)")
+                print()
+        else:
+            print("  No qrCode in response — check raw output above.")
+            print()
 
         print("=" * 50)
         print("  Open the mObywatel app on your phone:")
         print('  1. Tap "Kod QR"')
         print('  2. Select "Potwierdz swoje dane"')
-        if code:
-            print(f"  3. Scan the QR above or type: {code}")
-        else:
-            print("  3. Enter the code shown above")
+        print("  3. Scan the QR code above")
         print("  4. Approve sharing your data")
         print("=" * 50)
         print()
