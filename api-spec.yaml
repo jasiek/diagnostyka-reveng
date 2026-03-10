@@ -29,7 +29,7 @@ info:
     **App type:** Flutter (Dart compiled to libapp.so)
     **HTTP client:** Dio
     **Real-time:** Socket.IO (`/api/socket.io`)
-    **Auth headers:** `Authorization: Bearer <token>` + `X-API-KEY` header
+    **Auth headers:** `Authorization: Bearer <token>` (X-API-KEY was a false positive - it's from Sentry's sensitive header redaction list, not actually used)
 
     **JSON serialization:** Mixed camelCase/snake_case conventions.
     Some confirmed snake_case keys: `test_performed_date`, `checkout_summary`,
@@ -66,12 +66,7 @@ components:
     bearerAuth:
       type: http
       scheme: bearer
-      description: Firebase Auth ID token
-    apiKey:
-      type: apiKey
-      in: header
-      name: X-API-KEY
-      description: API key (used alongside Bearer token)
+      description: Firebase Auth ID token (obtained via phone number + SMS OTP flow)
 
   schemas:
     # ===== Common =====
