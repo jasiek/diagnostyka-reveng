@@ -310,6 +310,7 @@ components:
     # ===== Push Notification =====
     RegisterTokenRequest:
       type: object
+      required: [deviceToken, platform]
       properties:
         deviceToken:
           type: string
@@ -317,8 +318,6 @@ components:
         platform:
           type: string
           enum: [android, ios]
-        mobileToken:
-          type: string
 
     # ===== CSW (Lab Results) =====
     DocumentModel:
@@ -338,8 +337,14 @@ components:
           type: string
         testName:
           type: string
+        testNameToScroll:
+          type: string
         testCode:
           type: string
+        testCodes:
+          type: array
+          items:
+            type: string
         parameterId:
           type: string
         parameterCode:
@@ -348,6 +353,10 @@ components:
           type: string
         resultValue:
           type: string
+        resultTooHigh:
+          type: boolean
+        resultTooLow:
+          type: boolean
         value:
           type: string
         unit:
@@ -356,22 +365,41 @@ components:
           type: string
         referenceRangeInfoTitle:
           type: string
-        normalRange:
-          type: string
-        abnormal:
-          type: boolean
         status:
           type: string
         isVisible:
           type: boolean
+        testResultDetailsBarcode:
+          type: string
+        testResultDetailsDate:
+          type: string
+          format: date
+        testResultDetailsDateOfBirth:
+          type: string
+          format: date
+        testResultDetailsDoctor:
+          type: string
+        testResultDetailsName:
+          type: string
+        testResultDetailsOrderNumber:
+          type: string
+        testResultDetailsOrderedBy:
+          type: string
+        testResultDetailsPaidBy:
+          type: string
+        testResultDetailsPesel:
+          type: string
+        testResultDetailsReceiver:
+          type: string
+        test_performed_date:
+          type: string
+          format: date-time
         createdAt:
           type: string
           format: date-time
         updatedAt:
           type: string
           format: date-time
-        doctorName:
-          type: string
 
     OrderModel:
       type: object
@@ -470,11 +498,25 @@ components:
           type: array
           items:
             type: object
+        voucherTemplates:
+          type: array
+          items:
+            type: object
+        voucherCountPakiet:
+          type: integer
+          description: Count of package vouchers
+        voucherCountImep:
+          type: integer
+          description: Count of individual test vouchers
         expiryDate:
           type: string
           format: date
           description: 90 days from purchase
         orderId:
+          type: string
+        orderPdfUrl:
+          type: string
+        voucherPdfUrl:
           type: string
         createdAt:
           type: string
@@ -488,6 +530,20 @@ components:
           type: string
         productName:
           type: string
+        productCode:
+          type: string
+        productType:
+          type: string
+        productCurrency:
+          type: string
+          example: PLN
+        productPrice:
+          type: number
+          format: double
+        productPrices:
+          type: array
+          items:
+            type: object
         slug:
           type: string
         displayName:
@@ -503,6 +559,10 @@ components:
         price:
           type: number
           format: double
+        prices:
+          type: array
+          items:
+            type: object
         regularPrice:
           type: number
           format: double
@@ -557,6 +617,12 @@ components:
           type: array
           items:
             type: string
+        testsWithParameters:
+          type: array
+          items:
+            type: object
+        testsCount:
+          type: integer
 
     CategoryModel:
       type: object
@@ -807,6 +873,8 @@ components:
           type: object
         nip:
           type: string
+        statusNip:
+          type: string
         regon:
           type: string
         address:
@@ -852,6 +920,11 @@ components:
         parameterValue:
           type: string
         parameterType:
+          type: string
+        parameterDate:
+          type: string
+          format: date
+        parameterTestId:
           type: string
         unit:
           type: string
