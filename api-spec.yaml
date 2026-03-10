@@ -29,6 +29,12 @@ info:
     **App type:** Flutter (Dart compiled to libapp.so)
     **HTTP client:** Dio
     **Real-time:** Socket.IO (`/api/socket.io`)
+    **Auth headers:** `Authorization: Bearer <token>` + `X-API-KEY` header
+
+    **JSON serialization:** Mixed camelCase/snake_case conventions.
+    Some confirmed snake_case keys: `test_performed_date`, `checkout_summary`,
+    `start_timestamp`, `coupon_name`, `country_code`, `facility_name`.
+    Most fields use camelCase (e.g. `firstName`, `phoneNumber`, `orderStatus`).
 
     **SSL Certificate Pinning:**
     - Backend cert: `assets/certs/backend_prod_02_2027.cert` (valid 2026-02-17 to 2027-02-17, Certum OV TLS G2 R3)
@@ -61,6 +67,11 @@ components:
       type: http
       scheme: bearer
       description: Firebase Auth ID token
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-KEY
+      description: API key (used alongside Bearer token)
 
   schemas:
     # ===== Common =====
@@ -257,6 +268,10 @@ components:
         street:
           type: string
         streetType:
+          type: string
+        houseNumber:
+          type: string
+        flatNumber:
           type: string
         city:
           type: string
@@ -728,6 +743,9 @@ components:
         paymentMethod:
           type: string
           description: "PayU or Twisto"
+        invoiceNip:
+          type: string
+          description: NIP (tax ID) for invoice, if requested
 
     CheckoutResponse:
       type: object
