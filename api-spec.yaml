@@ -1,0 +1,440 @@
+openapi: 3.0.3
+info:
+  title: Diagnostyka Mobile API
+  description: |
+    Reverse-engineered API specification for the Diagnostyka mobile app (pl.diagnostyka.mobile v2.0.7).
+
+    This is a Flutter app that uses Firebase Auth for authentication and communicates with a custom backend.
+
+    **Backend hosts:**
+    - Production: `https://mobile-fir-backend.diag.pl`
+    - Production (alt): `https://mobile-fir-backend.diagnostyka.pl`
+    - Staging: `https://mobile-fir-backend-staging.diag.pl`
+    - Staging (alt): `https://mobile-fir-backend-staging.diagnostyka.pl`
+
+    **Authentication:** Firebase Auth (phone number + SMS OTP), then Bearer token in Authorization header.
+    Additional verification via mObywatel or MojeID for identity confirmation.
+
+    **External services:**
+    - LabPlus adapter: `https://api.adapter.labplus.pl`
+    - LabPlus LTC: `https://ltc.labplus.pl`
+    - Sentry: `https://464c8af78dc8eceb4d953552f53b9c3f@o107039.ingest.us.sentry.io/4508760361271296`
+    - Results portal: `https://wyniki.diag.pl/`
+    - E-shop: `https://diag.pl/sklep/`
+  version: 2.0.7
+  contact:
+    name: Diagnostyka
+    url: https://diag.pl
+
+servers:
+  - url: https://mobile-fir-backend.diag.pl
+    description: Production
+  - url: https://mobile-fir-backend-staging.diag.pl
+    description: Staging
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Firebase Auth ID token
+
+paths:
+  # ===== User / Auth =====
+  /api/v1/user/sign-in:
+    post:
+      tags: [Auth]
+      summary: Sign in user
+      description: Authenticate user after Firebase Auth verification
+
+  /api/v1/user:
+    get:
+      tags: [User]
+      summary: Get current user profile
+
+  /api/v1/user/language:
+    put:
+      tags: [User]
+      summary: Set user language preference
+
+  /api/v1/user-storage/{key}:
+    get:
+      tags: [User]
+      summary: Get user storage value
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+          examples:
+            appReview:
+              value: app_review_sent
+    put:
+      tags: [User]
+      summary: Set user storage value
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+
+  # ===== Device =====
+  /api/device/verified:
+    get:
+      tags: [Device]
+      summary: Check if device is verified
+
+  # ===== Push Notifications =====
+  /api/v1/push-notification/register-token:
+    post:
+      tags: [Notifications]
+      summary: Register push notification token (FCM)
+
+  # ===== Patient Data =====
+  /api/v1/patient-data:
+    get:
+      tags: [Patient]
+      summary: Get patient data
+
+  /api/v1/my-health-profile:
+    get:
+      tags: [Patient]
+      summary: Get health profile
+
+  # ===== Identity Verification =====
+  /api/v1/m-obywatel:
+    post:
+      tags: [Verification]
+      summary: Start mObywatel identity verification
+      description: Polish digital ID verification flow
+
+  /api/v1/moje-id:
+    post:
+      tags: [Verification]
+      summary: Start MojeID identity verification
+
+  # ===== Consent =====
+  /api/v1/consent:
+    get:
+      tags: [Consent]
+      summary: Get consent status
+    post:
+      tags: [Consent]
+      summary: Submit consent
+
+  /api/v1/consent/{id}:
+    put:
+      tags: [Consent]
+      summary: Update specific consent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+
+  # ===== CSW (Lab Results System) =====
+  /api/v1/csw:
+    get:
+      tags: [CSW]
+      summary: Get CSW data
+
+  /api/v1/csw/document/{id}:
+    get:
+      tags: [CSW]
+      summary: Get lab result document
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+
+  /api/v1/csw/patient/history/{id}:
+    get:
+      tags: [CSW]
+      summary: Get patient test history
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+
+  /api/v1/csw/patient/order:
+    get:
+      tags: [CSW]
+      summary: Get patient orders list
+
+  /api/v1/csw/patient/order/{id}:
+    get:
+      tags: [CSW]
+      summary: Get specific patient order
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+
+  /api/v1/csw/patient/search-values:
+    get:
+      tags: [CSW]
+      summary: Search patient values (autocomplete/filter)
+
+  # ===== E-Shop =====
+  /api/v1/eshop/products:
+    get:
+      tags: [E-Shop]
+      summary: Get product listing
+
+  /api/v1/eshop/products/{id}:
+    get:
+      tags: [E-Shop]
+      summary: Get product details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+
+  /api/v1/eshop/products/categories:
+    get:
+      tags: [E-Shop]
+      summary: Get product categories
+
+  /api/v1/eshop/products/category/{id}:
+    get:
+      tags: [E-Shop]
+      summary: Get products by category
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+
+  /api/v1/eshop/dashboard/blood-tests:
+    get:
+      tags: [E-Shop]
+      summary: Get dashboard blood tests
+
+  /api/v1/eshop/dashboard/packages:
+    get:
+      tags: [E-Shop]
+      summary: Get dashboard packages
+
+  /api/v1/eshop/search/blood-tests:
+    get:
+      tags: [E-Shop]
+      summary: Search blood tests
+
+  /api/v1/eshop/search/packages:
+    get:
+      tags: [E-Shop]
+      summary: Search packages
+
+  /api/v1/eshop/search/matches:
+    get:
+      tags: [E-Shop]
+      summary: Search matches (autocomplete)
+
+  /api/v1/eshop/search/popular-search:
+    get:
+      tags: [E-Shop]
+      summary: Get popular search terms
+
+  # ===== Cart (v2) =====
+  /api/v2/cart:
+    get:
+      tags: [Cart]
+      summary: Get current cart
+    post:
+      tags: [Cart]
+      summary: Add item to cart
+    delete:
+      tags: [Cart]
+      summary: Clear cart
+
+  /api/v2/cart/checkout:
+    post:
+      tags: [Cart]
+      summary: Begin checkout process
+
+  /api/v2/cart/checkout/{id}:
+    get:
+      tags: [Cart]
+      summary: Get checkout status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+
+  /api/v2/cart/discount:
+    post:
+      tags: [Cart]
+      summary: Apply discount code
+
+  /api/v2/cart/patient:
+    get:
+      tags: [Cart]
+      summary: Get cart patient data
+    post:
+      tags: [Cart]
+      summary: Set cart patient data
+
+  /api/v2/cart/patient/{id}:
+    put:
+      tags: [Cart]
+      summary: Update cart patient
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+
+  /api/v2/cart/promotion/{code}:
+    get:
+      tags: [Cart]
+      summary: Validate promotion code
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+
+  /api/v2/cart/suggested-packages:
+    get:
+      tags: [Cart]
+      summary: Get suggested packages for cart
+
+  /api/v2/cart/suggested-packages/{id}:
+    get:
+      tags: [Cart]
+      summary: Get suggested package details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+
+  # ===== Institutions / Facilities =====
+  /api/v1/institution:
+    get:
+      tags: [Institution]
+      summary: List institutions/facilities
+
+  /api/v1/institution/{id}:
+    get:
+      tags: [Institution]
+      summary: Get institution details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+
+  /api/v1/institution/attribute:
+    get:
+      tags: [Institution]
+      summary: Get institution attributes/filters
+
+  /api/v1/institution/city:
+    get:
+      tags: [Institution]
+      summary: Get available cities with institutions
+
+  /api/v1/institution/current:
+    get:
+      tags: [Institution]
+      summary: Get currently selected institution
+
+  # ===== GUS (Government Statistics) =====
+  /api/v1/gus/search:
+    get:
+      tags: [GUS]
+      summary: Search GUS registry (address lookup)
+
+  # ===== Order History =====
+  /api/v1/order-history:
+    get:
+      tags: [Orders]
+      summary: Get order history
+
+  /api/v1/order-history/voucher/{id}:
+    get:
+      tags: [Orders]
+      summary: Get voucher details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+
+  # ===== Profilaktometr (Health Prevention Tool) =====
+  /api/v1/profilaktometr:
+    get:
+      tags: [Profilaktometr]
+      summary: Get profilaktometr data
+
+  /api/v1/profilaktometr/config:
+    get:
+      tags: [Profilaktometr]
+      summary: Get profilaktometr configuration
+
+  /api/v1/profilaktometr/medical-parameters:
+    get:
+      tags: [Profilaktometr]
+      summary: Get medical parameters
+
+  /api/v1/profilaktometr/parameters/{id}:
+    get:
+      tags: [Profilaktometr]
+      summary: Get specific parameter details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+
+  /api/v1/profilaktometr/sync:
+    post:
+      tags: [Profilaktometr]
+      summary: Sync profilaktometr data
+
+  # ===== AI Assistant =====
+  /api/v1/assistant/session:
+    post:
+      tags: [Assistant]
+      summary: Create assistant session
+
+  /api/v1/assistant/topics:
+    get:
+      tags: [Assistant]
+      summary: Get assistant topics
+
+  /api/v1/assistant/conversation:
+    post:
+      tags: [Assistant]
+      summary: Send message to assistant
+
+  # ===== WebSocket =====
+  /api/socket.io:
+    get:
+      tags: [WebSocket]
+      summary: Socket.IO endpoint for real-time updates
+      description: Uses Socket.IO protocol for real-time communication
