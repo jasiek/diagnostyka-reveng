@@ -21,7 +21,8 @@ docker run --rm -v "$SCRIPT_DIR:/workspace" "$IMAGE_NAME" bash -c "
 echo "=== Step 3: Decompile main APK with jadx ==="
 docker run --rm -v "$SCRIPT_DIR:/workspace" "$IMAGE_NAME" bash -c "
   jadx --deobf --show-bad-code -d /workspace/$OUTPUT_DIR/jadx-output \
-    /workspace/$OUTPUT_DIR/xapk-contents/pl.diagnostyka.mobile.apk
+    /workspace/$OUTPUT_DIR/xapk-contents/pl.diagnostyka.mobile.apk \
+    || echo 'jadx finished with some decompilation errors (expected for obfuscated code)'
 "
 
 echo "=== Step 4: Extract native libraries from arm64 split APK ==="
