@@ -26,9 +26,9 @@ Usage:
 
 import argparse
 import json
-import os
 import sys
 import time
+import uuid
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -42,6 +42,15 @@ BACKEND_PROD = "https://mobile-fir-backend.diag.pl"
 BACKEND_STAGING = "https://mobile-fir-backend-staging.diag.pl"
 
 TOKEN_FILE = Path.home() / ".diagnostyka_tokens.json"
+
+# App identity — must match the real APK to be indistinguishable
+APP_VERSION = "2.0.7"
+APP_BUILD_NUMBER = "996"
+APP_PACKAGE = "pl.diagnostyka.mobile"
+
+# Dart 3.10.1 is the runtime in this Flutter build; dart:io HttpClient
+# sets this User-Agent by default and Dio inherits it.
+DART_USER_AGENT = "Dart/3.10 (dart:io)"
 
 
 class DiagnostykaAuth:
@@ -61,18 +70,36 @@ class DiagnostykaAuth:
         TOKEN_FILE.chmod(0o600)
 
     def send_sign_in_link(self, email: str):
-        """Step 1: Send magic link to email address."""
+        """Step 1: Request sign-in link via the Diagnostyka backend.
+
+        The backend calls Firebase Admin SDK to send the email and
+        creates a pending user record at the same time.  This is what
+        the real mobile app does — going through the backend rather
+        than calling Firebase client APIs directly.
+        """
         resp = requests.post(
-            f"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={FIREBASE_API_KEY}",
+            f"{BACKEND_PROD}/api/v1/user/sign-in",
+            headers={
+                "User-Agent": DART_USER_AGENT,
+                "Content-Type": "application/json; charset=utf-8",
+                "accept-language": "pl",
+            },
             json={
-                "requestType": "EMAIL_SIGNIN",
                 "email": email,
-                "continueUrl": CONTINUE_URL,
+                "actionCodeSettings": {
+                    "url": CONTINUE_URL,
+                    "handleCodeInApp": True,
+                    "android": {
+                        "packageName": APP_PACKAGE,
+                        "installApp": False,
+                        "minimumVersion": "1",
+                    },
+                },
             },
         )
         resp.raise_for_status()
         self._save_tokens({"email": email})
-        return resp.json()
+        return resp.json() if resp.text else {}
 
     def complete_sign_in(self, oob_code: str):
         """Step 2: Complete sign-in with the code from the email link."""
@@ -131,49 +158,81 @@ class DiagnostykaAuth:
 
 
 class DiagnostykaClient:
-    """Client for the Diagnostyka backend API."""
+    """Client for the Diagnostyka backend API.
 
-    def __init__(self, base_url: str = BACKEND_PROD):
+    Mimics the real Flutter app's HTTP fingerprint:
+    - User-Agent matches Dart's dart:io HttpClient default
+    - accept-language set via Dio interceptor (languageHeader)
+    - Content-Type only on requests with a body (Dio behaviour)
+    - Connection keep-alive (requests.Session handles this)
+    """
+
+    def __init__(self, base_url: str = BACKEND_PROD, language: str = "pl"):
         self.base_url = base_url.rstrip("/")
         self.auth = DiagnostykaAuth()
+        self.language = language
         self.session = requests.Session()
+        # Session-level headers that every request carries, matching the app
+        self.session.headers.update({
+            "User-Agent": DART_USER_AGENT,
+            "accept-language": self.language,
+            "Accept": "application/json",
+        })
 
-    def _headers(self) -> dict:
+    def _auth_headers(self) -> dict:
         return {
             "Authorization": f"Bearer {self.auth.get_id_token()}",
-            "Content-Type": "application/json",
-            "Accept": "application/json",
         }
 
     def get(self, path: str, params: dict = None) -> dict:
         url = f"{self.base_url}{path}"
-        resp = self.session.get(url, headers=self._headers(), params=params)
+        resp = self.session.get(url, headers=self._auth_headers(), params=params)
         resp.raise_for_status()
         return resp.json()
 
     def post(self, path: str, data: dict = None) -> dict:
         url = f"{self.base_url}{path}"
-        resp = self.session.post(url, headers=self._headers(), json=data)
+        headers = {**self._auth_headers(), "Content-Type": "application/json; charset=utf-8"}
+        resp = self.session.post(url, headers=headers, json=data)
         resp.raise_for_status()
         return resp.json()
 
     def put(self, path: str, data: dict = None) -> dict:
         url = f"{self.base_url}{path}"
-        resp = self.session.put(url, headers=self._headers(), json=data)
+        headers = {**self._auth_headers(), "Content-Type": "application/json; charset=utf-8"}
+        resp = self.session.put(url, headers=headers, json=data)
         resp.raise_for_status()
         return resp.json()
 
     def delete(self, path: str) -> dict:
         url = f"{self.base_url}{path}"
-        resp = self.session.delete(url, headers=self._headers())
+        resp = self.session.delete(url, headers=self._auth_headers())
         resp.raise_for_status()
         return resp.json()
 
     # ===== Convenience methods =====
 
     def sign_in(self) -> dict:
-        """Sign in to the Diagnostyka backend (after Firebase auth)."""
-        return self.post("/api/v1/user/sign-in")
+        """Re-trigger the backend sign-in email (same as 'login' step).
+
+        Normally not needed — use 'login' + 'verify' instead.
+        """
+        email = self.auth.tokens.get("email")
+        if not email:
+            raise RuntimeError("No email stored. Run 'login' first.")
+        self.auth.send_sign_in_link(email)
+        return {"status": "sign-in email sent", "email": email}
+
+    def register_push_token(self, fcm_token: str) -> dict:
+        """Register an FCM push notification token with the backend."""
+        return self.post("/api/v1/push-notification/register-token", data={
+            "token": fcm_token,
+            "deviceId": self.auth.tokens.get("deviceId", str(uuid.uuid4())),
+            "operatingSystem": "Android",
+            "operatingSystemVersion": "14",
+            "appVersion": APP_VERSION,
+            "buildNumber": APP_BUILD_NUMBER,
+        })
 
     def user(self) -> dict:
         return self.get("/api/v1/user")
@@ -284,18 +343,42 @@ class DiagnostykaClient:
 
 
 def extract_oob_code(url_or_code: str) -> str:
-    """Extract oobCode from a Firebase email link URL, or return as-is if already a code."""
-    if url_or_code.startswith("http"):
-        parsed = urlparse(url_or_code)
-        params = parse_qs(parsed.query)
-        if "oobCode" in params:
-            return params["oobCode"][0]
-        # Try fragment
-        params = parse_qs(parsed.fragment)
-        if "oobCode" in params:
-            return params["oobCode"][0]
-        raise ValueError(f"Could not find oobCode in URL: {url_or_code}")
-    return url_or_code
+    """Extract oobCode from a Firebase email link URL, or return as-is if already a code.
+
+    Firebase email sign-in links can come in several forms:
+    1. Direct: https://.../__/auth/action?mode=signIn&oobCode=ABC
+    2. Dynamic Link wrapper: https://diaglogin.page.link/XXXX?link=https%3A...%26oobCode%3DABC
+    3. Short Dynamic Link that must be followed (redirect)
+    """
+    if not url_or_code.startswith("http"):
+        return url_or_code
+
+    parsed = urlparse(url_or_code)
+    params = parse_qs(parsed.query)
+
+    # Direct oobCode in top-level query
+    if "oobCode" in params:
+        return params["oobCode"][0]
+
+    # Dynamic Link wrapper — oobCode is inside the nested 'link' param
+    if "link" in params:
+        return extract_oob_code(params["link"][0])
+
+    # Try fragment (some Firebase configs put params there)
+    frag_params = parse_qs(parsed.fragment)
+    if "oobCode" in frag_params:
+        return frag_params["oobCode"][0]
+
+    # Short Dynamic Link (e.g. https://diaglogin.page.link/XXXX) — follow redirect
+    try:
+        resp = requests.get(url_or_code, allow_redirects=False)
+        location = resp.headers.get("Location", "")
+        if location and location != url_or_code:
+            return extract_oob_code(location)
+    except requests.RequestException:
+        pass
+
+    raise ValueError(f"Could not find oobCode in URL: {url_or_code}")
 
 
 def pp(data):
@@ -306,6 +389,7 @@ def pp(data):
 def main():
     parser = argparse.ArgumentParser(description="Diagnostyka API client")
     parser.add_argument("--staging", action="store_true", help="Use staging backend")
+    parser.add_argument("--language", default="pl", help="Language header (default: pl)")
     sub = parser.add_subparsers(dest="command")
 
     # Auth commands
@@ -389,8 +473,7 @@ def main():
         print(f"Firebase UID: {result.get('localId', '?')}")
         print(f"Token stored in {TOKEN_FILE}")
         print()
-        print("Now sign in to the backend:")
-        print("  python diagnostyka.py signin")
+        print("Ready! Try:  python diagnostyka.py user")
         return
 
     if args.command == "refresh":
@@ -405,7 +488,7 @@ def main():
         return
 
     # API commands
-    client = DiagnostykaClient(base_url)
+    client = DiagnostykaClient(base_url, language=args.language)
 
     try:
         handlers = {
